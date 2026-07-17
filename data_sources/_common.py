@@ -2,8 +2,8 @@
 
 Two jobs:
   1. Load API credentials from the project ``.env``.
-  2. Expose ONE sample farm location so every source is queried at the same
-     place and the results are cross-comparable.
+  2. Expose the farm ``FIELDS`` so every source is queried at the same
+     place(s) and the results are cross-comparable.
 """
 from __future__ import annotations
 
@@ -41,28 +41,61 @@ def get_key(name: str, *, required: bool = True) -> str:
     return val
 
 
-# --- Sample farm: Story County, Iowa -------------------------------------
-# Central Iowa corn/soybean country — well covered by every US data source.
-SAMPLE_FARM = {
-    "name": "Story County, Iowa (sample farm)",
-    # A point on real cropland (verified corn/corn/soybean rotation in the
-    # USDA Cropland Data Layer) so every source returns representative data.
-    "lat": 42.05,
-    "lon": -93.50,
-    "state_alpha": "IA",
-    "state_fips": "19",
-    "county_fips": "169",   # county portion only
-    "fips": "19169",        # full state+county FIPS
-    "county_name": "STORY",
-}
+# --- Farm fields ---------------------------------------------------------
+# Add a field by copying a block below. Each field carries its county so the
+# county-level sources (QuickStats, CDL acreage, Drought Monitor, RMA) work
+# per field. Both current fields are in Monroe County, Michigan (FIPS 26115).
+input_name_farm_1 = "Ault's"
+input_name_farm_2 = "Rado's"
+
+FIELDS = [
+    {
+        "id": input_name_farm_1,
+        "name": "North 80",
+        "lat": 41.896389,
+        "lon": -83.623750,
+        "crop": "corn",
+        "acres": 20.49,
+        "state_alpha": "MI",
+        "state_fips": "26",
+        "county_name": "MONROE",
+        "county_fips": "115",
+        "fips": "26115",
+    },
+    {
+        "id": input_name_farm_2,
+        "name": "Field 2",
+        "lat": 41.909583,
+        "lon": -83.632444,
+        "crop": "soybeans",
+        "acres": 67,
+        "state_alpha": "MI",
+        "state_fips": "26",
+        "county_name": "MONROE",
+        "county_fips": "115",
+        "fips": "26115",
+    },
+]
+
+# Primary field used by the single-field source notebooks. Every notebook
+# imports SAMPLE_FARM; point it at whichever field you want, or loop FIELDS.
+SAMPLE_FARM = FIELDS[0]
+
+
+def get_field(field_id: str) -> dict:
+    """Look up a field by its id, e.g. get_field("Ault's")."""
+    for f in FIELDS:
+        if f["id"] == field_id:
+            return f
+    raise KeyError(f"No field {field_id!r}. Known ids: {[f['id'] for f in FIELDS]}")
 
 
 def field_polygon(lat: float | None = None, lon: float | None = None,
                   half_side_deg: float = 0.0045) -> dict:
     """A small square GeoJSON polygon (~1 km across) around a point.
 
-    Used for field-scale queries (OpenET, Planetary Computer). The default
-    half-side of ~0.0045 deg is roughly 500 m, i.e. a ~1 km x 1 km field.
+    Defaults to the primary field (SAMPLE_FARM). Used for field-scale
+    queries (OpenET, Planetary Computer). Half-side ~0.0045 deg ≈ 500 m.
     """
     lat = SAMPLE_FARM["lat"] if lat is None else lat
     lon = SAMPLE_FARM["lon"] if lon is None else lon
@@ -81,6 +114,8 @@ def field_polygon(lat: float | None = None, lon: float | None = None,
 
 if __name__ == "__main__":
     load_env()
-    print("Repo root :", REPO_ROOT)
-    print("Sample farm:", SAMPLE_FARM["name"], f'({SAMPLE_FARM["lat"]}, {SAMPLE_FARM["lon"]})')
+    print("Repo root:", REPO_ROOT)
+    for f in FIELDS:
+        print(f"Field: {f['id']} / {f['name']} ({f['lat']}, {f['lon']}) "
+              f"- {f['county_name']} Co, {f['state_alpha']} [{f['fips']}]")
     print("NASS key present:", bool(get_key("NASS_API_KEY", required=False)))
